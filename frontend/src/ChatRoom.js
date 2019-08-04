@@ -8,6 +8,7 @@ import Message from './Message';
 import $ from 'jquery';
 import './ChatRoom.css';
 
+
 class ChatRoom extends React.Component {
     constructor(props) {
         super(props);
@@ -22,24 +23,11 @@ class ChatRoom extends React.Component {
             this.props.stateRoomIdChanger(this.props.roomId);
             this.props.history.push('/'); //return <Redirect to="/"/>
         }
+
         this.handleMessageChange = this.handleMessageChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
-    }
 
-    handleMessageChange(event) {
-        this.setState({
-            message: event.target.value
-        });
-    }
 
-    handleSubmit(event) {
-        event.preventDefault();
-        this.props.parentState.socket.emit('sendMessage',
-            this.props.parentState.name, this.props.parentState.roomId,
-            this.state.message);
-    }
-
-    componentDidMount() {
         let addMessage = (name, message, timestamp) => {
             this.setState(state => {
                 const receivedMessage = state.receivedMessage.concat({
@@ -91,6 +79,65 @@ class ChatRoom extends React.Component {
                 removeUserFromRoom(name);
             });
 
+
+        let peerConnection = new RTCPeerConnection();
+        let socket = this.props.parentState.socket;
+        let roomId = this.props.roomId;
+        this.props.parentState.socket.on('receiveOffer',
+            function (message, broadcasterId) {
+                alert('offer prishol');
+                peerConnection = new RTCPeerConnection();
+                peerConnection.setRemoteDescription(message)
+                    .then(() => peerConnection.createAnswer())
+                    .then(sdp => peerConnection.setLocalDescription(sdp))
+                    .then(function () {
+                        socket.emit('sendAnswer', roomId, peerConnection.localDescription,
+                            broadcasterId);
+                    });
+                peerConnection.onaddstream = function (event) {
+                    // alert('stream dobavlen');
+                    document.getElementById('audio').srcObject = event.stream;
+                };
+            });
+
+    }
+
+    handleMessageChange(event) {
+        this.setState({
+            message: event.target.value
+        });
+    }
+
+    handleSubmit(event) {
+        event.preventDefault();
+        this.props.parentState.socket.emit('sendMessage',
+            this.props.parentState.name, this.props.parentState.roomId,
+            this.state.message);
+    }
+
+    componentDidMount() {
+
+        let peerConnections = {};
+        let peerConnection = new RTCPeerConnection();
+        let socket = this.props.parentState.socket;
+        let roomId = this.props.roomId;
+        navigator.mediaDevices.getUserMedia({
+            audio: true
+        }).then(function (stream) {
+            peerConnection.addStream(stream);
+            peerConnection.createOffer()
+                .then(sdp =>
+                    peerConnection.setLocalDescription(sdp))
+                .then(function () {
+                    socket.emit('sendOffer', roomId,
+                        peerConnection.localDescription);
+                });
+            // document.getElementById('audio').srcObject = stream;
+            // socket.emit('broadcaster');
+        }).catch(error => console.error(error));
+        this.props.parentState.socket.on('receiveAnswer', function (message) {
+            peerConnection.setRemoteDescription(message);
+        })
     }
 
     componentWillUnmount() {
@@ -124,12 +171,16 @@ class ChatRoom extends React.Component {
                         <div id='textarea-block'>
                             <textarea id="message-input" rows='3'
                                       onChange={this.handleMessageChange}
-                                      placeholder="Your message goes here">{this.state.message}</textarea>
+                                      placeholder="Your message goes here"
+                                      value={this.state.message}> </textarea>
                         </div>
                         <div id='submit-block'>
                             <input id="send-message-btn" type="submit" value="Send"/>
                         </div>
                     </form>
+                </div>
+                <div id="video-panel">
+                    <audio autoPlay controls id="audio"/>
                 </div>
             </div>
         );

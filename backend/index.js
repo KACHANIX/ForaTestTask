@@ -78,10 +78,8 @@ io.on('connection', (socket) => {
     });
 
 
-
     socket.on('sendMessage', function (name, roomId, message) {
         console.log(message);
-
         let today = new Date();
         let day = today.getDate().toString();
         let month = (today.getMonth() + 1).toString();
@@ -95,7 +93,30 @@ io.on('connection', (socket) => {
         rooms[roomId].connections.forEach(function (connection) {
             connection.socket.emit('newMessage', name, message, dateString)
         });
-    })
+    });
+
+
+    socket.on('sendOffer', function (roomId, message) {
+        console.log('aaaaaaaaaaaaaaaaaaaa' + roomId);
+        console.log('users' + rooms[roomId].connections.length)
+        console.log("HUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUY");
+        rooms[roomId].connections.forEach(function (connection) {
+            if (connection.socket !== socket){
+                connection.socket.emit('receiveOffer', message, socket.id);
+            }
+        });
+    });
+    
+    socket.on('sendAnswer', function (roomId, message, broadcasterId) {
+        rooms[roomId].connections.some(function (connection) {
+            if (connection.socket.id === broadcasterId){
+                connection.socket.emit('receiveAnswer', message);
+                return true;
+            }
+        });
+    });
+
+
 });
 
 const port = 8000;

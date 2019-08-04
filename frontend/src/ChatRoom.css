@@ -1,16 +1,18 @@
 #chat {
-    min-width: 1300px;
-    width: 1300px;
+    /*min-width: 1300px;*/
+    width: 1250px;
+    height: 600px;
+
     /*margin-left: auto;*/
 }
 
 #users-panel {
     float: left;
-    width: 250px;
-    height: 600px;
+    width: 166px;
+    height: 100%;
     border: 2px solid red;
     border-radius: 20px 0 0 20px;
-    display: inline-block;
+    /*display: inline-block;*/
     text-align: center;
 
     overflow: scroll;
@@ -19,9 +21,19 @@
 
 #chat-panel {
     margin-left: 10px;
-    display: inline-block;
+    /*display: inline-block;*/
+    float: left;
     width: 700px;
     height: 100%;
+}
+
+#video-panel{
+    margin-left: 10px;
+    height: 100%;
+    width: 330px;
+    float: left;
+    border: 2px solid red;
+    border-radius: 0 20px  20px 0;
 }
 
 #all-messages {
@@ -61,6 +73,8 @@
     height: 53px;
     width: 80px;
 }
+
+
 #ad{
     margin : 20px;
 }

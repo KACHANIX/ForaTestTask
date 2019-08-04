@@ -1,0 +1,27 @@
+
+.message-block {
+    width: 650px;
+    margin-left: 10px;
+}
+
+.name {
+
+}
+
+.text-div {
+    margin-left: 10px;
+    width: 500px;
+    display: inline-flex;
+    overflow-wrap: break-word;
+}
+
+.message-span {
+    width: 100%;
+}
+
+.timestamp {
+    margin-top: 20px;
+    float: right;
+    display: inline-flex;
+
+}

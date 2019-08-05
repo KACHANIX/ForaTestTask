@@ -83,9 +83,9 @@ class ChatRoom extends React.Component {
         let peerConnection = new RTCPeerConnection();
         let socket = this.props.parentState.socket;
         let roomId = this.props.roomId;
-        this.props.parentState.socket.on('receiveOffer',
+        socket.on('receiveOffer',
             function (message, broadcasterId) {
-                alert('offer prishol');
+                // alert('offer prishol');
                 peerConnection = new RTCPeerConnection();
                 peerConnection.setRemoteDescription(message)
                     .then(() => peerConnection.createAnswer())
@@ -95,11 +95,15 @@ class ChatRoom extends React.Component {
                             broadcasterId);
                     });
                 peerConnection.onaddstream = function (event) {
-                    // alert('stream dobavlen');
                     document.getElementById('audio').srcObject = event.stream;
                 };
+                peerConnection.onicecandidate = function (event) {
+                    socket.emit('sendIceCandidate', broadcasterId, event.candidate);
+                };
             });
-
+        socket.on ('addIceCandidate', function (candidate) {
+            peerConnection.addIceCandidate(candidate);
+        });
     }
 
     handleMessageChange(event) {
@@ -116,7 +120,6 @@ class ChatRoom extends React.Component {
     }
 
     componentDidMount() {
-
         let peerConnections = {};
         let peerConnection = new RTCPeerConnection();
         let socket = this.props.parentState.socket;
@@ -135,8 +138,15 @@ class ChatRoom extends React.Component {
             // document.getElementById('audio').srcObject = stream;
             // socket.emit('broadcaster');
         }).catch(error => console.error(error));
-        this.props.parentState.socket.on('receiveAnswer', function (message) {
+        this.props.parentState.socket.on('receiveAnswer', function (message, watcherId) {
+
             peerConnection.setRemoteDescription(message);
+            peerConnection.onicecandidate = function (event) {
+                socket.emit('sendIceCandidate', watcherId, event.candidate);
+            };
+        });
+        socket.on ('addIceCandidate', function (candidate) {
+            peerConnection.addIceCandidate(candidate);
         })
     }
 

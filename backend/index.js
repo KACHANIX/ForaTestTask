@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
 
     socket.on('sendOffer', function (roomId, message) {
         console.log('aaaaaaaaaaaaaaaaaaaa' + roomId);
-        console.log('users' + rooms[roomId].connections.length)
+        console.log('users' + rooms[roomId].connections.length);
         console.log("HUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUY");
         rooms[roomId].connections.forEach(function (connection) {
             if (connection.socket !== socket){
@@ -106,16 +106,19 @@ io.on('connection', (socket) => {
             }
         });
     });
-    
+
     socket.on('sendAnswer', function (roomId, message, broadcasterId) {
         rooms[roomId].connections.some(function (connection) {
             if (connection.socket.id === broadcasterId){
-                connection.socket.emit('receiveAnswer', message);
+                connection.socket.emit('receiveAnswer', message, socket.id);
                 return true;
             }
         });
     });
 
+    socket.on('sendIceCandidate', function(id, candidate){
+        socket.to(id).emit('addIceCandidate', candidate);
+    })
 
 });
 

@@ -12,13 +12,13 @@ import './ChatRoom.css';
 class ChatRoom extends React.Component {
     constructor(props) {
         super(props);
-        // alert(`name : ${this.props.parentState.name}\nroomId : ${this.props.parentState.roomId}`);
-
         this.state = {
             message: '',
-            receivedMessage: [],
+            receivedMessages: [],
             users: []
         };
+
+        // при переходе в комнату по ссылке запоминаем номер комнаты, отправляем вводить имя
         if (this.props.parentState.roomId === -1) {
             this.props.stateRoomIdChanger(this.props.roomId);
             this.props.history.push('/'); //return <Redirect to="/"/>
@@ -26,84 +26,96 @@ class ChatRoom extends React.Component {
 
         this.handleMessageChange = this.handleMessageChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
+        this.startStream = this.startStream.bind(this);
+
+        let socket = this.props.parentState.socket;
+        let roomId = this.props.roomId;
 
 
+        // добавление сообщения в state компонента, после чего оно будет добавлено в all-messages
         let addMessage = (name, message, timestamp) => {
             this.setState(state => {
-                const receivedMessage = state.receivedMessage.concat({
+                const receivedMessages = state.receivedMessages.concat({
                     author: name,
                     messageText: message,
                     timestamp: timestamp
                 });
                 return {
-                    receivedMessage,
+                    receivedMessages,
                 }
             });
         };
-        this.props.parentState.socket.on('newMessage',
+        socket.on('newMessage',
             function (name, message, timestamp) {
                 addMessage(name, message, timestamp);
-                document.getElementById('all-messages').scrollBy(0, 1000000);
+                document.getElementById('all-messages').scrollBy(0, 1000000); // при добавлении нового собщения проматываем скролл до самого низа
             });
 
+
+        // добавление нового пользователя в state компонента, после чего он будет добавлен users-panel
         let addUserToRoom = (name) => {
             this.setState(state => {
-                // alert(state.users);
                 const users = state.users.concat(name);
                 return {
                     users,
                 }
             });
         };
-        this.props.parentState.socket.on('newUser',
+        socket.on('newUser',
             function (name) {
-
                 addUserToRoom(name);
             });
 
+
+        // удаление пользователя, после его выхода из чата
         let removeUserFromRoom = (name) => {
             this.setState(state => {
-                console.log(state.users);
                 let userList = state.users;
-                userList.splice(userList.indexOf(name), 1)
+                userList.splice(userList.indexOf(name), 1);
                 const users = userList;
-
-                console.log(users);
                 return {
                     users,
                 }
             });
         };
-        this.props.parentState.socket.on('removeUser',
+        socket.on('removeUser',
             function (name) {
                 removeUserFromRoom(name);
             });
 
-
+        //Далее - часть кода, связанная с WebRTC
         let peerConnection = new RTCPeerConnection();
-        let socket = this.props.parentState.socket;
-        let roomId = this.props.roomId;
+        // получаем оффер от т.н. передатчика
         socket.on('receiveOffer',
-            function (message, broadcasterId) {
-                // alert('offer prishol');
+            function (broadcasterId, message) {
                 peerConnection = new RTCPeerConnection();
                 peerConnection.setRemoteDescription(message)
-                    .then(() => peerConnection.createAnswer())
+                    .then(() => peerConnection.createAnswer()) // создаем answer и отправляем его передатчику
                     .then(sdp => peerConnection.setLocalDescription(sdp))
                     .then(function () {
-                        socket.emit('sendAnswer', roomId, peerConnection.localDescription,
-                            broadcasterId);
+                        socket.emit('sendAnswer', broadcasterId,
+                            peerConnection.localDescription);
                     });
                 peerConnection.onaddstream = function (event) {
-                    document.getElementById('audio').srcObject = event.stream;
+                    if (event.stream) {
+                        let newStream = document.createElement('video');   // создаем и добавляем на страницу новый элемент video,
+                        newStream.srcObject = event.stream;                        // чей source будет являться потоком от передатчика
+                        newStream.controls = true;
+                        newStream.autoplay = true;
+                        document.getElementById('videos').appendChild(newStream);
+                    }
                 };
                 peerConnection.onicecandidate = function (event) {
-                    socket.emit('sendIceCandidate', broadcasterId, event.candidate);
+                    if (event.candidate) {                                // передача своего ICECandidate передатчику
+                        socket.emit('sendIceCandidateToBroadcaster',  // для установления p2p-соединения
+                            broadcasterId, event.candidate);
+                    }
                 };
+                socket.on('addIceCandidateOnViewer',
+                    function (broadcasterId, candidate) {                                // при  получении ICECandidate передатчика,
+                        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));  // устанавливаем его
+                    });
             });
-        socket.on ('addIceCandidate', function (candidate) {
-            peerConnection.addIceCandidate(candidate);
-        });
     }
 
     handleMessageChange(event) {
@@ -112,42 +124,63 @@ class ChatRoom extends React.Component {
         });
     }
 
-    handleSubmit(event) {
-        event.preventDefault();
-        this.props.parentState.socket.emit('sendMessage',
-            this.props.parentState.name, this.props.parentState.roomId,
-            this.state.message);
-    }
+    startStream(event) {
 
-    componentDidMount() {
-        let peerConnections = {};
-        let peerConnection = new RTCPeerConnection();
         let socket = this.props.parentState.socket;
         let roomId = this.props.roomId;
+        let outgoingConnections = {};
         navigator.mediaDevices.getUserMedia({
+            video: true,                                 // устанавливаем настройки самого "потока"
             audio: true
         }).then(function (stream) {
-            peerConnection.addStream(stream);
+            let hostVideo = document.getElementById('yourVideo');
+            hostVideo.srcObject = stream;                // выводим пользователю вид с его же камеры,
+            hostVideo.style.display = 'block';           // причём в самом начале страницы
+            socket.emit('startStreaming', roomId);        // в ответ на startStreaming нам
+        }).catch(error => console.error(error));    // придут все id "зрителей"
+
+
+        socket.on('getViewerId', function (viewerId) {
+            const peerConnection = new RTCPeerConnection();    // после получения id зрителя, создаем оффер
+            outgoingConnections[viewerId] = peerConnection;    // и отправляем его ему
+            peerConnection.addStream(document.getElementById('yourVideo').srcObject);
             peerConnection.createOffer()
                 .then(sdp =>
                     peerConnection.setLocalDescription(sdp))
                 .then(function () {
-                    socket.emit('sendOffer', roomId,
+                    socket.emit('sendOffer', viewerId,
                         peerConnection.localDescription);
                 });
-            // document.getElementById('audio').srcObject = stream;
-            // socket.emit('broadcaster');
-        }).catch(error => console.error(error));
-        this.props.parentState.socket.on('receiveAnswer', function (message, watcherId) {
-
-            peerConnection.setRemoteDescription(message);
             peerConnection.onicecandidate = function (event) {
-                socket.emit('sendIceCandidate', watcherId, event.candidate);
+                if (event.candidate) {
+                    socket.emit('sendIceCandidateToBroadcaster',
+                        viewerId, event.candidate);
+                }
             };
         });
-        socket.on ('addIceCandidate', function (candidate) {
-            peerConnection.addIceCandidate(candidate);
-        })
+
+        socket.on('receiveAnswer', function (viewerId, message) {
+            outgoingConnections[viewerId].setRemoteDescription(message);
+        });
+
+        socket.on('addIceCandidateOnBroadcaster', function (viewerId, candidate) {
+            outgoingConnections[viewerId].addIceCandidate(new RTCIceCandidate(candidate));
+        });
+    }
+
+    handleSubmit(event) {
+        event.preventDefault();
+        this.props.parentState.socket.emit('sendMessage',
+            this.props.parentState.name,
+            this.props.parentState.roomId,
+            this.state.message);
+        this.setState({        // после отправки сообщения, зачищаем стейт и,
+            message: ''             // соответственно, само поле ввода сообщения
+        });
+    }
+
+    componentDidMount() {
+
     }
 
     componentWillUnmount() {
@@ -162,6 +195,8 @@ class ChatRoom extends React.Component {
             <div id="chat">
                 <div id="users-panel">
                     <h4><strong>Users online</strong></h4>
+                    {/*   при обновлении state.users пользователи в самом элементе
+                          будут изменяться (добавляться или удаляться)  */}
                     {
                         this.state.users.map((user) =>
                             <h5>{user}</h5>
@@ -170,8 +205,11 @@ class ChatRoom extends React.Component {
                 </div>
                 <div id="chat-panel">
                     <div id="all-messages">
+
+                        {/*  при обновлении state.receivedMessages
+                          будут добавляться сообщения   */}
                         {
-                            this.state.receivedMessage.map((message) =>
+                            this.state.receivedMessages.map((message) =>
                                 <Message name={message.author} message={message.messageText}
                                          timestamp={message.timestamp}/>
                             )
@@ -190,7 +228,12 @@ class ChatRoom extends React.Component {
                     </form>
                 </div>
                 <div id="video-panel">
-                    <audio autoPlay controls id="audio"/>
+                    <div id="videos">
+                        <video controls autoPlay muted={true} id="yourVideo"/>
+                    </div>
+                    <div id="start-stream">
+                        <button id="start-stream-btn" onClick={this.startStream}>Start streaming</button>
+                    </div>
                 </div>
             </div>
         );

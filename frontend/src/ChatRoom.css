@@ -1,21 +1,21 @@
 #chat {
     /*min-width: 1300px;*/
-    width: 1250px;
-    height: 600px;
-
-    /*margin-left: auto;*/
+    margin-top: 100px;
+    width: 1230px;
+    height: 700px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 #users-panel {
     float: left;
     width: 166px;
     height: 100%;
-    border: 2px solid red;
+    border: 2px solid #1E90FF;
     border-radius: 20px 0 0 20px;
     /*display: inline-block;*/
     text-align: center;
-
-    overflow: scroll;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
@@ -27,19 +27,19 @@
     height: 100%;
 }
 
-#video-panel{
+#video-panel {
     margin-left: 10px;
     height: 100%;
     width: 330px;
     float: left;
-    border: 2px solid red;
-    border-radius: 0 20px  20px 0;
+    border: 2px solid #1E90FF;
+    border-radius: 0 20px 20px 0;
 }
 
 #all-messages {
     /*display: block;*/
-    height: 550px;
-    overflow: scroll;
+    height: 650px;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
@@ -50,7 +50,7 @@
 }
 
 
-#textarea-block{
+#textarea-block {
     display: inline-block;
     width: 600px;
 }
@@ -66,15 +66,43 @@
     float: right;
     display: inline-block;
 }
-#send-message-btn{
-    border-radius: 5px;
-    border:1px solid transparent;
 
+#send-message-btn {
+    border-radius: 5px;
+    border: 1px solid transparent;
     height: 53px;
     width: 80px;
 }
 
+#videos {
+    width: 100%;
+    height: 645px;
+    overflow-y: auto;
+    text-align: center;
+}
 
-#ad{
-    margin : 20px;
+#start-stream {
+    width: 110px;
+    height: 50px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#start-stream-btn {
+    width: 110px;
+    height: 50px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+}
+
+video{
+    width: 300px;
+    height: 200px;
+}
+
+#yourVideo{
+
+    margin-left: auto;
+    margin-right: auto;
+    display: none;
 }

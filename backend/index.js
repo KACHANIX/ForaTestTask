@@ -5,25 +5,19 @@ let rooms = [];
 class Room {
     constructor(name, socket) {
         this.connections = [
-            {                               // class can be simplified or even removed: we can remember only sockets,
-                name: name,                 // but the chatrooms might be improved in a better way in the future
-                socket: socket              // (we can add userpics, chat-logo, chat-name etc)
+            {                               // класс может быть упрощен или вовсе удален: мы можем запоминать
+                name: name,                 // только сокеты, но в будущем мы можем улучшить чатрумы,
+                socket: socket              // к примеру,добавить юзерпики, лого чата,имя чата итд
             }
         ];
     }
 }
 
 io.on('connection', (socket) => {
-    console.log("asd");
 
     socket.on('newRoom', function (name) {
-        rooms.push(new Room(name, socket));
-        console.log(rooms.length - 1);
-        rooms.forEach(function (e) {
-            console.log(`\n_________ ${e.id} ----- ${e.connections.length} _________`)
-        });
-        console.log(typeof []);
-        socket.emit('roomCreated', rooms.length - 1);
+        rooms.push(new Room(name, socket));             // создаем новую комнату и "кладем"
+        socket.emit('roomCreated', rooms.length - 1);   // туда первого пользователя
         socket.emit('newUser', name);
     });
 
@@ -33,20 +27,15 @@ io.on('connection', (socket) => {
             name: name,
             socket: socket
         });
-        rooms.forEach(function (e) {
-            console.log(`\n_________ ${e.id} ----- ${e.connections.length} _________`)
-        });
         socket.emit('roomEntered', roomId);
         rooms[roomId].connections.forEach(function (connection) {
-            if (rooms[roomId].connections[rooms[roomId].connections.length - 1] === connection) {
-                let names = [];
+            // новому пользователю отправляем имена всех уже присутствующих участников чата,
+            // всем присутствующим отправляем только имя нового участника
+            let lastConnectionIndex = rooms[roomId].connections.length - 1;
+            if (rooms[roomId].connections[lastConnectionIndex] === connection) {
                 rooms[roomId].connections.forEach(function (connection_) {
-                    names.push(connection_.name);
+                    connection.socket.emit('newUser', connection_.name);
                 });
-                console.log(names);
-                names.forEach(function (name_) {
-                    connection.socket.emit('newUser', name_);
-                })
             } else {
                 connection.socket.emit('newUser', name);
             }
@@ -57,8 +46,13 @@ io.on('connection', (socket) => {
     socket.on('disconnect', function () {
         console.log(typeof rooms);
         rooms.some(function (room) {
+
+            // чтобы не тратить больше времени на прогон всех комнат и соединений,
+            // используем some a не forEach
             let isFound = room.connections.some(function (connection) {
                 if (connection.socket === socket) {
+                    // находим комнату, из которой вышел пользователь
+                    // и отправляем всем её участникам его имя
                     let roomIndex = rooms.indexOf(room);
                     let leftUserName = connection.name;
                     let connectionIndex = rooms[roomIndex].connections.indexOf(connection);
@@ -72,14 +66,14 @@ io.on('connection', (socket) => {
             if (isFound)
                 return true;
         });
-        rooms.forEach(function (room) {
-            console.log(`${rooms.indexOf(room)}       ${room.connections.length}`);
-        });
     });
 
 
     socket.on('sendMessage', function (name, roomId, message) {
-        console.log(message);
+
+        //отправляем сообщение всем пользователяем в комнату, а также
+        // отправляем и дату получения сообщения в формате mm:hh dd/mm
+
         let today = new Date();
         let day = today.getDate().toString();
         let month = (today.getMonth() + 1).toString();
@@ -96,29 +90,36 @@ io.on('connection', (socket) => {
     });
 
 
-    socket.on('sendOffer', function (roomId, message) {
-        console.log('aaaaaaaaaaaaaaaaaaaa' + roomId);
-        console.log('users' + rooms[roomId].connections.length);
-        console.log("HUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUYHUY");
+    //Далее - часть кода, связанная с WebRTC
+
+    socket.on('startStreaming', function (roomId) {
+        // отдаем передатчику всех зрителей
         rooms[roomId].connections.forEach(function (connection) {
-            if (connection.socket !== socket){
-                connection.socket.emit('receiveOffer', message, socket.id);
+            if (connection.socket !== socket) {
+                socket.emit('getViewerId', connection.socket.id);
             }
         });
     });
 
-    socket.on('sendAnswer', function (roomId, message, broadcasterId) {
-        rooms[roomId].connections.some(function (connection) {
-            if (connection.socket.id === broadcasterId){
-                connection.socket.emit('receiveAnswer', message, socket.id);
-                return true;
-            }
-        });
+    socket.on('sendOffer', function (viewerId, sdp) {
+        // передаем зрителю оффер от передатчика
+        socket.to(viewerId).emit('receiveOffer', socket.id, sdp);
     });
 
-    socket.on('sendIceCandidate', function(id, candidate){
-        socket.to(id).emit('addIceCandidate', candidate);
-    })
+    socket.on('sendAnswer', function (broadcasterId, message) {
+        // передаем передатчику answer от зрителя
+        socket.to(broadcasterId).emit('receiveAnswer', socket.id, message);
+    });
+
+    socket.on('sendIceCandidateToViewer', function (viewerId, candidate) {
+        // передаем зрителю ICECandidate от передатчика
+        socket.to(viewerId).emit('addIceCandidateOnViewer', socket.id, candidate);
+    });
+
+    socket.on('sendIceCandidateToBroadcaster', function (broadcasterId, candidate) {
+        // передаем передатчику ICECandidate от зрителя
+        socket.to(broadcasterId).emit('addIceCandidateOnBroadcaster', socket.id, candidate);
+    });
 
 });
 

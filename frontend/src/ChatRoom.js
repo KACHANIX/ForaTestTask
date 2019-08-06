@@ -1,11 +1,7 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
-import logo from './logo.svg';
 import './FirstPage.css';
-import openSocket from 'socket.io-client';
 import {withRouter} from 'react-router';
 import Message from './Message';
-import $ from 'jquery';
 import './ChatRoom.css';
 
 

@@ -1,11 +1,9 @@
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-import openSocket from 'socket.io-client';
 import './FirstPage';
 import FirstPage from "./FirstPage";
 import ChatRoom from "./ChatRoom";
-import {BrowserRouter as Router, Route, Link} from "react-router-dom";
+import {BrowserRouter as Router, Route} from "react-router-dom";
 
 
 const io = require('socket.io-client');

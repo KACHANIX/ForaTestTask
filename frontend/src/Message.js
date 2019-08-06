@@ -1,8 +1,5 @@
-import React from 'react';
-import logo from './logo.svg';
+import React from 'react'; 
 import './FirstPage.css';
-import openSocket from 'socket.io-client';
-import {withRouter} from 'react-router';
 import './Message.css';
 
 class Message extends React.Component {

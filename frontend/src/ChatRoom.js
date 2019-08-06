@@ -23,6 +23,8 @@ class ChatRoom extends React.Component {
         this.handleMessageChange = this.handleMessageChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.startStream = this.startStream.bind(this);
+        this.isEnter = this.isEnter.bind(this);
+
 
         let socket = this.props.parentState.socket;
         let roomId = this.props.roomId;
@@ -114,12 +116,6 @@ class ChatRoom extends React.Component {
             });
     }
 
-    handleMessageChange(event) {
-        this.setState({
-            message: event.target.value
-        });
-    }
-
     startStream(event) {
 
         let socket = this.props.parentState.socket;
@@ -164,6 +160,13 @@ class ChatRoom extends React.Component {
         });
     }
 
+
+    handleMessageChange(event) {
+        this.setState({
+            message: event.target.value
+        });
+    }
+
     handleSubmit(event) {
         event.preventDefault();
         this.props.parentState.socket.emit('sendMessage',
@@ -173,6 +176,13 @@ class ChatRoom extends React.Component {
         this.setState({        // после отправки сообщения, зачищаем стейт и,
             message: ''             // соответственно, само поле ввода сообщения
         });
+    }
+
+    isEnter(event) {
+        if (event.keyCode === 13) {
+            event.preventDefault();
+            document.getElementById('send-message-btn').click();
+        }
     }
 
     componentDidMount() {
@@ -216,6 +226,7 @@ class ChatRoom extends React.Component {
                             <textarea id="message-input" rows='3'
                                       onChange={this.handleMessageChange}
                                       placeholder="Your message goes here"
+                                      onKeyDown={this.isEnter}
                                       value={this.state.message}> </textarea>
                         </div>
                         <div id='submit-block'>

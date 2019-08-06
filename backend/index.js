@@ -44,7 +44,6 @@ io.on('connection', (socket) => {
 
 
     socket.on('disconnect', function () {
-        console.log(typeof rooms);
         rooms.some(function (room) {
 
             // чтобы не тратить больше времени на прогон всех комнат и соединений,
